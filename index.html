@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LoL Counter Lookup</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --card: #1e293b;
+            --accent: #38bdf8;
+            --text: #f8fafc;
+            --green: #22c55e;
+            --yellow: #eab308;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .search-area {
+            position: relative;
+            width: 100%;
+            max-width: 500px;
+            margin-bottom: 2rem;
+        }
+
+        input {
+            width: 100%;
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid #334155;
+            background: #1e293b;
+            color: white;
+            font-size: 1rem;
+            outline: none;
+        }
+
+        input:focus {
+            border-color: var(--accent);
+        }
+
+        /* The Custom Dropdown */
+        .dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: #ffffff;
+            color: #0f172a;
+            border-radius: 8px;
+            margin-top: 5px;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 100;
+            display: none;
+            /* Hidden by default */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+        }
+
+        .dropdown-item {
+            padding: 12px 16px;
+            cursor: pointer;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .dropdown-item:hover {
+            background: #f1f5f9;
+            color: var(--accent);
+        }
+
+        .selected-champs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .chip {
+            background: var(--accent);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .chip span {
+            cursor: pointer;
+            color: #0f172a;
+        }
+
+        .results-grid {
+            display: flex;
+            gap: 20px;
+            overflow-x: auto;
+            width: 100%;
+            padding-bottom: 20px;
+        }
+
+        .card {
+            background: var(--card);
+            min-width: 260px;
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid #334155;
+        }
+
+        .card h2 {
+            text-align: center;
+            margin-top: 0;
+            color: var(--accent);
+            border-bottom: 1px solid #334155;
+            padding-bottom: 10px;
+        }
+
+        .row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #334155;
+        }
+
+        .winrate {
+            font-weight: bold;
+        }
+
+        .wr-low {
+            color: var(--green);
+        }
+
+        .wr-mid {
+            color: var(--yellow);
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>LoL Counter Lookup</h1>
+
+    <div class="search-area">
+        <input type="text" id="search" placeholder="Type champion name..." autocomplete="off">
+        <div id="dropdown" class="dropdown"></div>
+    </div>
+
+    <div id="selectedList" class="selected-champs"></div>
+    <div id="grid" class="results-grid"></div>
+
+    <script>
+        let matchups = {};
+        const searchInput = document.getElementById('search');
+        const dropdown = document.getElementById('dropdown');
+        const grid = document.getElementById('grid');
+        const selectedList = document.getElementById('selectedList');
+        const activeChamps = new Set();
+
+        // 1. Load your JSON file
+        fetch('matchups.json')
+            .then(response => response.json())
+            .then(data => { matchups = data; });
+
+        // 2. Dropdown Logic
+        searchInput.addEventListener('input', () => {
+            const query = searchInput.value.toLowerCase();
+            dropdown.innerHTML = '';
+
+            if (!query) {
+                dropdown.style.display = 'none';
+                return;
+            }
+
+            // Get names from the keys of your matchups.json
+            const matches = Object.keys(matchups).filter(name =>
+                name.toLowerCase().includes(query)
+            );
+
+            if (matches.length > 0) {
+                matches.forEach(name => {
+                    const item = document.createElement('div');
+                    item.className = 'dropdown-item';
+                    item.textContent = name;
+                    item.onclick = () => selectChamp(name);
+                    dropdown.appendChild(item);
+                });
+                dropdown.style.display = 'block';
+            } else {
+                dropdown.style.display = 'none';
+            }
+        });
+
+        function selectChamp(name) {
+            if (!activeChamps.has(name)) {
+                activeChamps.add(name);
+                render();
+            }
+            searchInput.value = '';
+            dropdown.style.display = 'none';
+        }
+
+        function removeChamp(name) {
+            activeChamps.delete(name);
+            render();
+        }
+
+        // 3. Sorting & Rendering
+        function render() {
+            selectedList.innerHTML = '';
+            grid.innerHTML = '';
+
+            activeChamps.forEach(name => {
+                // Chip
+                const chip = document.createElement('div');
+                chip.className = 'chip';
+                chip.innerHTML = `${name} <span onclick="removeChamp('${name}')">×</span>`;
+                selectedList.appendChild(chip);
+
+                // Card Calculation
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `<h2>${name}</h2>`;
+
+                // Sort counters by winrate (ascending = best counter first)
+                const sorted = Object.entries(matchups[name])
+                    .sort((a, b) => a[1] - b[1])
+                    .slice(0, 10);
+
+                sorted.forEach(([counter, wr], index) => {
+                    const color = wr < 44 ? 'wr-low' : (wr < 48 ? 'wr-mid' : '');
+                    card.innerHTML += `
+                        <div class="row">
+                            <span>${index + 1}. ${counter}</span>
+                            <span class="winrate ${color}">${wr.toFixed(2)}%</span>
+                        </div>
+                    `;
+                });
+
+                grid.appendChild(card);
+            });
+        }
+
+        // Close dropdown when clicking away
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.search-area')) dropdown.style.display = 'none';
+        });
+    </script>
+</body>
+
+</html>
