@@ -164,7 +164,7 @@
         const activeChamps = new Set();
 
         // 1. Load your JSON file
-        fetch('matchups.json')
+        fetch('./matchups.json')
             .then(response => response.json())
             .then(data => { matchups = data; });
 
