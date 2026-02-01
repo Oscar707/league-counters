@@ -110,22 +110,31 @@
             background: var(--card);
             min-width: 260px;
             border-radius: 12px;
-            padding: 1.5rem;
+            padding: 0;
+            /* Remove padding from card to let header flush */
             border: 1px solid #334155;
+            max-height: 400px;
+            overflow-y: auto;
+            position: relative;
+            /* Context for sticky */
         }
 
         .card h2 {
             text-align: center;
-            margin-top: 0;
+            margin: 0;
             color: var(--accent);
             border-bottom: 1px solid #334155;
-            padding-bottom: 10px;
+            padding: 1.5rem;
+            position: sticky;
+            top: 0;
+            background: var(--card);
+            z-index: 10;
         }
 
         .row {
             display: flex;
             justify-content: space-between;
-            padding: 8px 0;
+            padding: 8px 1.5rem;
             border-bottom: 1px solid #334155;
         }
 
@@ -230,8 +239,7 @@
 
                 // Sort counters by winrate (ascending = best counter first)
                 const sorted = Object.entries(matchups[name])
-                    .sort((a, b) => a[1] - b[1])
-                    .slice(0, 10);
+                    .sort((a, b) => a[1] - b[1]);
 
                 sorted.forEach(([counter, wr], index) => {
                     const color = wr < 44 ? 'wr-low' : (wr < 48 ? 'wr-mid' : '');
